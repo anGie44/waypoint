@@ -2,6 +2,7 @@ package ceb
 
 import (
 	"context"
+	"fmt"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -45,7 +46,14 @@ func (ceb *CEB) initConfigStream(ctx context.Context, cfg *config, isRetry bool)
 
 	// Modify childCmd to contain any passed variables as environment variables
 	for _, cv := range resp.Config.EnvVars {
-		ceb.childCmd.Env = append(ceb.childCmd.Env, cv.Name+"="+cv.Value)
+		static, ok := cv.Value.(*pb.ConfigVar_Static)
+		if !ok {
+			log.Warn("unknown config value type received, ignoring",
+				"type", fmt.Sprintf("%T", cv.Value))
+			continue
+		}
+
+		ceb.childCmd.Env = append(ceb.childCmd.Env, cv.Name+"="+static.Static)
 	}
 
 	// If we have URL service configuration, start it. We start this in a goroutine
